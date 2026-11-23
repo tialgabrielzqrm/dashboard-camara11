@@ -50,11 +50,13 @@
     th, td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
     th { background: #162032; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
     tr:last-child td { border-bottom: none; }
-    tr.topic-row:hover td { background: rgba(255, 255, 255, 0.02); }
+    tr.topic-row td { background: rgba(255, 255, 255, 0.025); }
+    tr.topic-row:hover td, tr.sub-row:hover td { background: rgba(255, 255, 255, 0.05); }
+    tr.sub-row td { padding: 6px 16px; border-bottom: 1px solid rgba(51, 65, 85, 0.5); }
 
     tr.group-row td { background: #162032; padding: 10px 16px; border-bottom: 1px solid var(--border); }
     .group-inner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .group-title { font-weight: 700; font-size: 0.95rem; }
+    .group-title { font-weight: 700; font-size: 1.1rem; }
     .group-meta { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
 
     .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
@@ -62,15 +64,14 @@
     .badge-p1 { background: rgba(56, 189, 248, 0.15); color: var(--primary); }
 
     .topic-num { display: inline-block; min-width: 28px; color: var(--primary); font-weight: 700; }
-    .topic-title { font-weight: 600; }
-    ul.subs { list-style: none; margin: 8px 0 0 28px; display: grid; gap: 4px; }
-    ul.subs li { color: var(--text-muted); font-size: 0.82rem; line-height: 1.4; }
-    ul.subs li b { color: var(--accent); font-weight: 600; margin-right: 6px; }
+    .topic-title { font-weight: 600; font-size: 0.95rem; }
+    .sub-text { padding-left: 28px; color: var(--text-muted); font-size: 0.78rem; line-height: 1.4; }
+    .sub-text b { color: var(--accent); font-weight: 600; margin-right: 6px; }
+    tr.sub-row input[type="checkbox"] { width: 14px; height: 14px; }
 
     .checkbox-cell { text-align: center; }
     input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
-    tr.done td { opacity: 0.55; }
-    tr.done td.checkbox-cell { opacity: 1; }
+    tr.done td:not(.checkbox-cell) { opacity: 0.5; }
   </style>
 </head>
 <body>
@@ -147,7 +148,8 @@
   </div>
 
   <script>
-    // Edital - Cargo 11 (item 14.2): cada linha é um tópico numerado do edital; os subitens aparecem abaixo dele.
+    // Edital - Cargo 11 (item 14.2). Cada subitem do edital tem suas próprias caixas.
+    // Tópicos com subitens têm caixas "marcar tudo" que acompanham os subitens.
     const editalData = [
   {
     "id": "port_1",
@@ -1251,43 +1253,47 @@
 ];
 
     const STORAGE_KEY = "camara_cargo11_progress_v2";
+    const FIELDS = ["teoria", "exercicios", "rev1", "rev2"];
+
+    const byId = {};
+    const leaves = []; // itens que contam no progresso: subitens, ou o tópico quando não tem subitens
+    editalData.forEach(function (item) {
+      byId[item.id] = item;
+      if (item.subs.length) {
+        item.subs.forEach(function (s) { s.id = item.id + "_" + s.n; leaves.push({ id: s.id, materia: item.materia }); });
+      } else {
+        leaves.push({ id: item.id, materia: item.materia });
+      }
+    });
 
     function loadProgress() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { return {}; }
+      let p = {};
+      try { p = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { p = {}; }
+      // migração: marcas antigas feitas no tópico passam para os subitens
+      let changed = false;
+      editalData.forEach(function (item) {
+        if (!item.subs.length || !p[item.id]) return;
+        item.subs.forEach(function (s) {
+          p[s.id] = p[s.id] || {};
+          FIELDS.forEach(function (f) { if (p[item.id][f] && p[s.id][f] === undefined) p[s.id][f] = true; });
+        });
+        delete p[item.id];
+        changed = true;
+      });
+      if (changed) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
+      return p;
     }
     let userProgress = loadProgress();
 
+    function getVal(id, f) { return !!(userProgress[id] && userProgress[id][f]); }
+    function setVal(id, f, v) {
+      if (!userProgress[id]) userProgress[id] = {};
+      userProgress[id][f] = !!v;
+    }
     function saveProgress() {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(userProgress)); } catch (e) {}
-      updateMetrics();
     }
-
-    function toggleCheck(id, field, el) {
-      if (!userProgress[id]) userProgress[id] = {};
-      userProgress[id][field] = !userProgress[id][field];
-      saveProgress();
-      refreshRow(id);
-      refreshGroups();
-    }
-
-    function isDone(id) {
-      const s = userProgress[id] || {};
-      return !!(s.teoria && s.exercicios && s.rev1 && s.rev2);
-    }
-
-    function refreshRow(id) {
-      const tr = document.querySelector('tr[data-id="' + id + '"]');
-      if (tr) tr.classList.toggle("done", isDone(id));
-    }
-
-    function refreshGroups() {
-      document.querySelectorAll("tr.group-row").forEach(function (g) {
-        const m = g.getAttribute("data-materia");
-        const items = editalData.filter(function (i) { return i.materia === m; });
-        const teoria = items.filter(function (i) { return (userProgress[i.id] || {}).teoria; }).length;
-        g.querySelector(".group-meta").textContent = items.length + " tópicos · teoria " + teoria + "/" + items.length;
-      });
-    }
+    function allDone(id) { return FIELDS.every(function (f) { return getVal(id, f); }); }
 
     function populateSubjects() {
       const blocoFilter = document.getElementById("filterBloco").value;
@@ -1309,6 +1315,13 @@
     function onBlocoChange() {
       populateSubjects();
       renderTable();
+    }
+
+    function leafBox(id, f) {
+      return '<td class="checkbox-cell"><input type="checkbox" data-id="' + id + '" data-f="' + f + '"></td>';
+    }
+    function parentBox(id, f) {
+      return '<td class="checkbox-cell"><input type="checkbox" data-parent="' + id + '" data-f="' + f + '"></td>';
     }
 
     function renderTable() {
@@ -1337,63 +1350,98 @@
           tbody.appendChild(g);
         }
 
-        const state = userProgress[item.id] || {};
+        const hasSubs = item.subs.length > 0;
         const tr = document.createElement("tr");
-        tr.className = "topic-row" + (isDone(item.id) ? " done" : "");
-        tr.setAttribute("data-id", item.id);
-
-        const subs = item.subs.length
-          ? '<ul class="subs">' + item.subs.map(function (s) { return "<li><b>" + s.n + "</b>" + s.t + "</li>"; }).join("") + "</ul>"
-          : "";
-
-        function cb(field, checked) {
-          return '<td class="checkbox-cell"><input type="checkbox" ' + (checked ? "checked" : "") +
-                 " onchange=\"toggleCheck('" + item.id + "', '" + field + "', this)\"></td>";
-        }
-
+        tr.className = "topic-row";
+        tr.setAttribute("data-row", item.id);
+        const box = hasSubs ? parentBox : leafBox;
         tr.innerHTML =
           "<td></td>" +
-          '<td><span class="topic-num">' + item.n + '</span><span class="topic-title">' + item.topico + "</span>" + subs + "</td>" +
-          cb("teoria", state.teoria) + cb("exercicios", state.exercicios) + cb("rev1", state.rev1) + cb("rev2", state.rev2);
+          '<td><span class="topic-num">' + item.n + '</span><span class="topic-title">' + item.topico + "</span></td>" +
+          FIELDS.map(function (f) { return box(item.id, f); }).join("");
         tbody.appendChild(tr);
+
+        item.subs.forEach(function (s) {
+          const sr = document.createElement("tr");
+          sr.className = "sub-row";
+          sr.setAttribute("data-row", s.id);
+          sr.innerHTML =
+            "<td></td>" +
+            '<td class="sub-text"><b>' + s.n + "</b>" + s.t + "</td>" +
+            FIELDS.map(function (f) { return leafBox(s.id, f); }).join("");
+          tbody.appendChild(sr);
+        });
       });
-      refreshGroups();
+      syncUI();
+    }
+
+    // Atualiza caixas, linhas esmaecidas, contagens por matéria e métricas sem redesenhar a tabela
+    function syncUI() {
+      document.querySelectorAll("input[data-id]").forEach(function (el) {
+        el.checked = getVal(el.dataset.id, el.dataset.f);
+      });
+      document.querySelectorAll("input[data-parent]").forEach(function (el) {
+        const item = byId[el.dataset.parent];
+        const n = item.subs.filter(function (s) { return getVal(s.id, el.dataset.f); }).length;
+        el.checked = n === item.subs.length;
+        el.indeterminate = n > 0 && n < item.subs.length;
+      });
+      document.querySelectorAll("tr[data-row]").forEach(function (tr) {
+        const id = tr.getAttribute("data-row");
+        const item = byId[id];
+        let done;
+        if (item && item.subs.length) done = item.subs.every(function (s) { return allDone(s.id); });
+        else done = allDone(id);
+        tr.classList.toggle("done", done);
+      });
+      document.querySelectorAll("tr.group-row").forEach(function (g) {
+        const m = g.getAttribute("data-materia");
+        const ls = leaves.filter(function (l) { return l.materia === m; });
+        const teoria = ls.filter(function (l) { return getVal(l.id, "teoria"); }).length;
+        g.querySelector(".group-meta").textContent = ls.length + " itens · teoria " + teoria + "/" + ls.length;
+      });
+      updateMetrics();
     }
 
     function updateMetrics() {
-      const totalItems = editalData.length;
+      const total = leaves.length;
       let theory = 0, exercises = 0, rev1 = 0, rev2 = 0;
-
-      editalData.forEach(function (item) {
-        const state = userProgress[item.id] || {};
-        if (state.teoria) theory++;
-        if (state.exercicios) exercises++;
-        if (state.rev1) rev1++;
-        if (state.rev2) rev2++;
+      leaves.forEach(function (l) {
+        if (getVal(l.id, "teoria")) theory++;
+        if (getVal(l.id, "exercicios")) exercises++;
+        if (getVal(l.id, "rev1")) rev1++;
+        if (getVal(l.id, "rev2")) rev2++;
       });
-
-      const totalChecksPossible = totalItems * 4;
-      const totalChecksDone = theory + exercises + rev1 + rev2;
-      const percent = Math.round((totalChecksDone / totalChecksPossible) * 100);
+      const percent = Math.round(((theory + exercises + rev1 + rev2) / (total * 4)) * 100);
 
       document.getElementById("overallPercent").textContent = percent + "%";
       document.getElementById("progressText").textContent = percent + "%";
       document.getElementById("progressBar").style.width = percent + "%";
-
-      document.getElementById("theoryCount").textContent = theory + "/" + totalItems;
-      document.getElementById("exercisesCount").textContent = exercises + "/" + totalItems;
-      document.getElementById("revisionsCount").textContent = (rev1 + rev2) + "/" + (totalItems * 2);
+      document.getElementById("theoryCount").textContent = theory + "/" + total;
+      document.getElementById("exercisesCount").textContent = exercises + "/" + total;
+      document.getElementById("revisionsCount").textContent = (rev1 + rev2) + "/" + (total * 2);
     }
 
-    function filterData() {
-      renderTable();
-    }
+    document.getElementById("topicsTable").addEventListener("change", function (e) {
+      const el = e.target;
+      if (!el || el.tagName !== "INPUT") return;
+      const f = el.dataset.f;
+      if (el.dataset.parent) {
+        byId[el.dataset.parent].subs.forEach(function (s) { setVal(s.id, f, el.checked); });
+      } else {
+        setVal(el.dataset.id, f, el.checked);
+      }
+      saveProgress();
+      syncUI();
+    });
+
+    function filterData() { renderTable(); }
 
     function resetProgress() {
       if (confirm("Deseja realmente zerar todo o progresso marcado?")) {
         userProgress = {};
         saveProgress();
-        renderTable();
+        syncUI();
       }
     }
 
@@ -1409,7 +1457,6 @@
 
     populateSubjects();
     renderTable();
-    updateMetrics();
   </script>
 </body>
 </html>

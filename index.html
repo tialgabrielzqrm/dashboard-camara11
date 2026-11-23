@@ -43,6 +43,10 @@
     .metric-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
     .metric-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
     .metric-value { font-size: 1.8rem; font-weight: bold; margin-top: 8px; color: var(--primary); }
+    .metric-value { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .metric-pct { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+    .mini-track { background: #0b2b21; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 12px; }
+    .mini-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s ease; }
 
     .progress-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
     .progress-header { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 10px; }
@@ -108,15 +112,18 @@
       </div>
       <div class="metric-card">
         <div class="metric-title">Teoria Concluída</div>
-        <div class="metric-value" id="theoryCount">0/0</div>
+        <div class="metric-value"><span id="theoryCount">0/0</span><span class="metric-pct" id="theoryPct">0%</span></div>
+        <div class="mini-track"><div class="mini-fill" id="theoryBar"></div></div>
       </div>
       <div class="metric-card">
         <div class="metric-title">Exercícios Feitos</div>
-        <div class="metric-value" id="exercisesCount">0/0</div>
+        <div class="metric-value"><span id="exercisesCount">0/0</span><span class="metric-pct" id="exercisesPct">0%</span></div>
+        <div class="mini-track"><div class="mini-fill" id="exercisesBar"></div></div>
       </div>
       <div class="metric-card">
         <div class="metric-title">Revisões Realizadas</div>
-        <div class="metric-value" id="revisionsCount">0/0</div>
+        <div class="metric-value"><span id="revisionsCount">0/0</span><span class="metric-pct" id="revisionsPct">0%</span></div>
+        <div class="mini-track"><div class="mini-fill" id="revisionsBar"></div></div>
       </div>
     </div>
 
@@ -1412,7 +1419,7 @@
         const m = g.getAttribute("data-materia");
         const ls = leaves.filter(function (l) { return l.materia === m; });
         const teoria = ls.filter(function (l) { return getVal(l.id, "teoria"); }).length;
-        g.querySelector(".group-meta").textContent = ls.length + " itens · teoria " + teoria + "/" + ls.length;
+        g.querySelector(".group-meta").textContent = ls.length + " itens · teoria " + teoria + "/" + ls.length + " (" + Math.round((teoria / ls.length) * 100) + "%)";
       });
       updateMetrics();
     }
@@ -1431,9 +1438,15 @@
       document.getElementById("overallPercent").textContent = percent + "%";
       document.getElementById("progressText").textContent = percent + "%";
       document.getElementById("progressBar").style.width = percent + "%";
-      document.getElementById("theoryCount").textContent = theory + "/" + total;
-      document.getElementById("exercisesCount").textContent = exercises + "/" + total;
-      document.getElementById("revisionsCount").textContent = (rev1 + rev2) + "/" + (total * 2);
+      function setCard(countId, pctId, barId, done, of) {
+        const p = Math.round((done / of) * 100);
+        document.getElementById(countId).textContent = done + "/" + of;
+        document.getElementById(pctId).textContent = p + "%";
+        document.getElementById(barId).style.width = p + "%";
+      }
+      setCard("theoryCount", "theoryPct", "theoryBar", theory, total);
+      setCard("exercisesCount", "exercisesPct", "exercisesBar", exercises, total);
+      setCard("revisionsCount", "revisionsPct", "revisionsBar", rev1 + rev2, total * 2);
     }
 
     document.getElementById("topicsTable").addEventListener("change", function (e) {

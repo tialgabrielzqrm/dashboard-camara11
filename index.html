@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Estudos - Câmara dos Deputados (Cargo 11)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --success: #10b981;
+      --accent: #818cf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    h1 { font-size: 1.6rem; color: var(--text); }
+    .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .metric-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .metric-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .metric-value { font-size: 1.8rem; font-weight: bold; margin-top: 8px; color: var(--primary); }
+
+    .progress-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .progress-header { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 10px; }
+    .progress-track { background: #334155; height: 14px; border-radius: 7px; overflow: hidden; }
+    .progress-fill { background: linear-gradient(90deg, var(--primary), var(--success)); height: 100%; width: 0%; transition: width 0.3s ease; }
+
+    .controls { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    select, button {
+      background: var(--card-bg); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; outline: none;
+    }
+    select:focus { border-color: var(--primary); }
+    button:hover { background: #334155; }
+    .btn-reset { margin-left: auto; color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+    .btn-reset:hover { background: rgba(248, 113, 113, 0.1); }
+
+    .table-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { background: #162032; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+    tr:last-child td { border-bottom: none; }
+    tr.topic-row:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    tr.group-row td { background: #162032; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .group-inner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .group-title { font-weight: 700; font-size: 0.95rem; }
+    .group-meta { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
+
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .badge-p2 { background: rgba(129, 140, 248, 0.15); color: var(--accent); }
+    .badge-p1 { background: rgba(56, 189, 248, 0.15); color: var(--primary); }
+
+    .topic-num { display: inline-block; min-width: 28px; color: var(--primary); font-weight: 700; }
+    .topic-title { font-weight: 600; }
+    ul.subs { list-style: none; margin: 8px 0 0 28px; display: grid; gap: 4px; }
+    ul.subs li { color: var(--text-muted); font-size: 0.82rem; line-height: 1.4; }
+    ul.subs li b { color: var(--accent); font-weight: 600; margin-right: 6px; }
+
+    .checkbox-cell { text-align: center; }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+    tr.done td { opacity: 0.55; }
+    tr.done td.checkbox-cell { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div>
+        <h1>Dashboard: Câmara dos Deputados</h1>
+        <div class="subtitle">Analista Legislativo – Cargo 11: Registro e Redação · conteúdo conforme item 14.2 do edital</div>
+      </div>
+      <div>
+        <button onclick="exportData()">💾 Fazer Backup (JSON)</button>
+      </div>
+    </header>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-title">Progresso Geral</div>
+        <div class="metric-value" id="overallPercent">0%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Teoria Concluída</div>
+        <div class="metric-value" id="theoryCount">0/0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Exercícios Feitos</div>
+        <div class="metric-value" id="exercisesCount">0/0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Revisões Realizadas</div>
+        <div class="metric-value" id="revisionsCount">0/0</div>
+      </div>
+    </div>
+
+    <div class="progress-container">
+      <div class="progress-header">
+        <span>Conclusão do Conteúdo Programático</span>
+        <span id="progressText">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <select id="filterBloco" onchange="onBlocoChange()">
+        <option value="all">Todos os Blocos (P1 e P2)</option>
+        <option value="P2">Apenas P2 (Conhecimentos Específicos)</option>
+        <option value="P1">Apenas P1 (Conhecimentos Básicos)</option>
+      </select>
+
+      <select id="filterSubject" onchange="filterData()">
+        <option value="all">Todas as Matérias</option>
+      </select>
+
+      <button class="btn-reset" onclick="resetProgress()">Reiniciar Progresso</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70px;">Bloco</th>
+            <th>Tópico do Edital</th>
+            <th class="checkbox-cell" style="width: 80px;">Teoria</th>
+            <th class="checkbox-cell" style="width: 80px;">Exerc.</th>
+            <th class="checkbox-cell" style="width: 80px;">Rev. 1</th>
+            <th class="checkbox-cell" style="width: 80px;">Rev. 2</th>
+          </tr>
+        </thead>
+        <tbody id="topicsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Edital - Cargo 11 (item 14.2): cada linha é um tópico numerado do edital; os subitens aparecem abaixo dele.
+    const editalData = [
+  {
+    "id": "port_1",
+    "bloco": "P1",
+    "materia": "Língua Portuguesa",
+    "materiaEdital": "Língua Portuguesa",
+    "n": "1",
+    "topico": "Compreensão e interpretação de textos de gêneros variados",
+    "subs": []
+  },
+  {
+    "id": "port_2",
+    "bloco": "P1",
+    "materia": "Língua Portuguesa",
+    "materiaEdital": "Língua Portuguesa",
+    "n": "2",
+    "topico": "Reconhecimento de tipos e gêneros textuais",
+    "subs": []
+  },
+  {
+    "id": "port_3",
+    "bloco": "P1",
+    "materia": "Língua Portuguesa",
+    "materiaEdital": "Língua Portuguesa",
+    "n": "3",
+    "topico": "Domínio da ortografia",
+    "subs": []
+  },
+  {
+    "id": "port_4",
+    "bloco": "P1",
+    "materia": "Língua Portuguesa",
+    "materiaEdital": "Língua Portuguesa",
+    "n": "4",
+    "topico": "Domínio dos mecanismos de coesão textual",
+    "subs": [
+      {
+        "n": "4.1",
+        "t": "Emprego de elementos de referenciação, substituição e repetição, de conectores e de outros elementos de sequenciação textual"
+      },
+      {
+        "n": "4.2",
+        "t": "Emprego de tempos e modos verbais"
+      }
+    ]
+  },
+  {
+    "id": "port_5",
+    "bloco": "P1",
+    "materia": "Língua Portuguesa",
+    "materiaEdital": "Língua Portuguesa",
+    "n": "5",
+    "topico": "Domínio da estrutura morfossintática do período",
+    "subs": [
+      {
+        "n": "5.1",
+        "t": "Emprego das classes de palavras"
+      },
+      {
+        "n": "5.2",
+        "t": "Relações de coordenação entre orações e entre termos da oração"
+      },
+      {
+        "n": "5.3",
+        "t": "Relações de subordinação entre orações e entre termos da oração"
+      },
+      {
+        "n": "5.4",
+        "t": "Emprego dos sinais de pontuação"
+      },
+      {
+        "n": "5.5",
+        "t": "Concordância verbal e nominal"
+      },
+      {
+        "n": "5.6",
+        "t": "Regência verbal e nominal"
+      },
+      {
+        "n": "5.7",
+        "t": "Emprego do sinal indicativo de crase"
+      },
+      {
+        "n": "5.8",
+        "t": "Colocação dos pronomes átonos"
+      }
+    ]
+  },
+  {
+    "id": "port_6",
+    "bloco": "P1",
+    "materia": "Língua Portuguesa",
+    "materiaEdital": "Língua Portuguesa",
+    "n": "6",
+    "topico": "Reescrita de frases e parágrafos do texto",
+    "subs": [
+      {
+        "n": "6.1",
+        "t": "Significação das palavras"
+      },
+      {
+        "n": "6.2",
+        "t": "Substituição de palavras ou de trechos de texto"
+      },
+      {
+        "n": "6.3",
+        "t": "Reorganização da estrutura de orações e de períodos do texto"
+      },
+      {
+        "n": "6.4",
+        "t": "Reescrita de textos de diferentes gêneros e níveis de formalidade"
+      }
+    ]
+  },
+  {
+    "id": "ing_1",
+    "bloco": "P1",
+    "materia": "Língua Inglesa",
+    "materiaEdital": "Língua Inglesa",
+    "n": "1",
+    "topico": "Compreensão de textos variados: vocabulário e estrutura da língua, ideias principais e secundárias, explícitas e implícitas, relações intratextuais e intertextuais",
+    "subs": []
+  },
+  {
+    "id": "ing_2",
+    "bloco": "P1",
+    "materia": "Língua Inglesa",
+    "materiaEdital": "Língua Inglesa",
+    "n": "2",
+    "topico": "Itens gramaticais relevantes para compreensão de conteúdos semânticos",
+    "subs": []
+  },
+  {
+    "id": "ing_3",
+    "bloco": "P1",
+    "materia": "Língua Inglesa",
+    "materiaEdital": "Língua Inglesa",
+    "n": "3",
+    "topico": "Conhecimento e uso das formas contemporâneas da linguagem inglesa",
+    "subs": []
+  },
+  {
+    "id": "adm_1",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "1",
+    "topico": "Estado, governo e Administração Pública: conceito, elementos, poderes e organização do Estado",
+    "subs": [
+      {
+        "n": "1.1",
+        "t": "Princípios constitucionais e doutrinários da Administração Pública"
+      },
+      {
+        "n": "1.2",
+        "t": "Organização administrativa: administração direta e indireta; centralização, descentralização, concentração e desconcentração"
+      }
+    ]
+  },
+  {
+    "id": "adm_2",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "2",
+    "topico": "Ato administrativo",
+    "subs": [
+      {
+        "n": "2.1",
+        "t": "Conceito, requisitos, atributos, classificação e espécies, extinção, nulidades e revogação"
+      },
+      {
+        "n": "2.2",
+        "t": "Parecer: responsabilidade do emissor do parecer"
+      }
+    ]
+  },
+  {
+    "id": "adm_3",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "3",
+    "topico": "Agentes públicos",
+    "subs": [
+      {
+        "n": "3.1",
+        "t": "Disposições constitucionais aplicáveis"
+      },
+      {
+        "n": "3.2",
+        "t": "Cargo, emprego e função pública"
+      },
+      {
+        "n": "3.3",
+        "t": "Requisição"
+      },
+      {
+        "n": "3.4",
+        "t": "Regime jurídico dos servidores públicos federais (Lei 8.112/1990 e alterações)"
+      }
+    ]
+  },
+  {
+    "id": "adm_4",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "4",
+    "topico": "Direito administrativo disciplinar",
+    "subs": [
+      {
+        "n": "4.1",
+        "t": "Fontes e princípios"
+      },
+      {
+        "n": "4.2",
+        "t": "Ilícito de direito administrativo disciplinar"
+      },
+      {
+        "n": "4.3",
+        "t": "Procedimentos disciplinares da administração pública"
+      },
+      {
+        "n": "4.4",
+        "t": "Processo Administrativo Federal (Lei 9.784/1999 e alterações)"
+      }
+    ]
+  },
+  {
+    "id": "adm_5",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "5",
+    "topico": "Poderes administrativos",
+    "subs": [
+      {
+        "n": "5.1",
+        "t": "Discricionário, hierárquico, disciplinar, regulamentar e de polícia"
+      },
+      {
+        "n": "5.2",
+        "t": "Uso e abuso do poder"
+      }
+    ]
+  },
+  {
+    "id": "adm_6",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "6",
+    "topico": "Responsabilidade civil do Estado",
+    "subs": [
+      {
+        "n": "6.1",
+        "t": "Responsabilidade civil do Estado no direito brasileiro"
+      },
+      {
+        "n": "6.2",
+        "t": "Responsabilidade por ato comissivo do Estado"
+      },
+      {
+        "n": "6.3",
+        "t": "Responsabilidade por omissão do Estado"
+      },
+      {
+        "n": "6.4",
+        "t": "Requisitos para a demonstração da responsabilidade do Estado"
+      },
+      {
+        "n": "6.5",
+        "t": "Causas excludentes e atenuantes da responsabilidade do Estado"
+      }
+    ]
+  },
+  {
+    "id": "adm_7",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "7",
+    "topico": "Improbidade Administrativa (Lei 8.429/1992 e alterações)",
+    "subs": []
+  },
+  {
+    "id": "adm_8",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "8",
+    "topico": "Evolução dos modelos de gestão pública: patrimonialismo, administração burocrática e nova gestão pública (New Public Management)",
+    "subs": [
+      {
+        "n": "8.1",
+        "t": "Nova Governança Pública (New Public Governance): conceito, fundamentos e evolução"
+      },
+      {
+        "n": "8.2",
+        "t": "Ação pública em redes de cooperação, articulação interinstitucional e parcerias com o setor privado e terceiro setor"
+      },
+      {
+        "n": "8.3",
+        "t": "Coprodução do bem público, participação cidadã e transparência ativa"
+      },
+      {
+        "n": "8.4",
+        "t": "Valor Público, cadeia de valor público"
+      }
+    ]
+  },
+  {
+    "id": "adm_9",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "9",
+    "topico": "Governança na Administração Pública",
+    "subs": [
+      {
+        "n": "9.1",
+        "t": "Governança pública: conceito, distinção entre governança e governabilidade e alinhamento estratégico"
+      },
+      {
+        "n": "9.2",
+        "t": "Mecanismos de governança: liderança, estratégia e controle"
+      },
+      {
+        "n": "9.3",
+        "t": "Conceito de valor público: geração de valor para a sociedade, entrega de resultados, sustentabilidade e avaliação de impactos de políticas públicas"
+      },
+      {
+        "n": "9.4",
+        "t": "Decreto Federal 9.203/2017 e alterações (política de governança da administração pública federal)"
+      }
+    ]
+  },
+  {
+    "id": "adm_10",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "10",
+    "topico": "Noções de Licitações e Contratos (Lei 14.133/2021 e alterações)",
+    "subs": [
+      {
+        "n": "10.1",
+        "t": "Licitação Pública: conceito, princípios, finalidade, modalidades, dispensa e inexigibilidade"
+      },
+      {
+        "n": "10.2",
+        "t": "Contratos administrativos"
+      },
+      {
+        "n": "10.3",
+        "t": "Características do contrato administrativo"
+      },
+      {
+        "n": "10.4",
+        "t": "Formalização, gestão e fiscalização do contrato"
+      },
+      {
+        "n": "10.5",
+        "t": "Planejamento e fiscalização contratual"
+      },
+      {
+        "n": "10.6",
+        "t": "Papel do fiscalizador do contrato"
+      },
+      {
+        "n": "10.7",
+        "t": "Estudo Técnico Preliminar e Termo de Referência"
+      }
+    ]
+  },
+  {
+    "id": "adm_11",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "11",
+    "topico": "Lei de Acesso à Informação (Lei 12.527/2011 e alterações)",
+    "subs": []
+  },
+  {
+    "id": "adm_12",
+    "bloco": "P1",
+    "materia": "Direito Administrativo e Adm. Pública",
+    "materiaEdital": "Noções de Direito Administrativo e Administração Pública",
+    "n": "12",
+    "topico": "Lei Geral de Proteção de Dados Pessoais (Lei 13.709/2018 e alterações)",
+    "subs": []
+  },
+  {
+    "id": "const_1",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "1",
+    "topico": "Constituição Federal de 1988: conceito, contexto histórico, características, estrutura do texto",
+    "subs": []
+  },
+  {
+    "id": "const_2",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "2",
+    "topico": "Princípios fundamentais. Direitos e garantias fundamentais: direitos e deveres individuais e coletivos, direitos sociais, nacionalidade, direitos políticos e partidos políticos",
+    "subs": []
+  },
+  {
+    "id": "const_3",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "3",
+    "topico": "Organização do Estado: organização político-administrativa, União, estados, municípios, Distrito Federal e territórios. Intervenção Federal",
+    "subs": []
+  },
+  {
+    "id": "const_4",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "4",
+    "topico": "Administração pública: disposições gerais, servidores públicos civis e militares",
+    "subs": []
+  },
+  {
+    "id": "const_5",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "5",
+    "topico": "Poder Legislativo: o Congresso Nacional e suas Casas (atribuições, competências, reuniões e comissões)",
+    "subs": []
+  },
+  {
+    "id": "const_6",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "6",
+    "topico": "Regime jurídico-constitucional dos parlamentares",
+    "subs": []
+  },
+  {
+    "id": "const_7",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "7",
+    "topico": "Regimento Interno da Câmara dos Deputados",
+    "subs": [
+      {
+        "n": "7.1",
+        "t": "Disposições preliminares e Órgãos da Câmara (arts. 1º a 24)"
+      },
+      {
+        "n": "7.2",
+        "t": "Sessões da Câmara (arts. 65 a 94)"
+      },
+      {
+        "n": "7.3",
+        "t": "Deputados (arts. 226 a 251)"
+      },
+      {
+        "n": "7.4",
+        "t": "Administração e economia interna (arts. 262 a 273)"
+      }
+    ]
+  },
+  {
+    "id": "const_8",
+    "bloco": "P1",
+    "materia": "Direito Constitucional e Regimento Interno",
+    "materiaEdital": "Noções de Direito Constitucional e de Regimento Interno da Câmara dos Deputados",
+    "n": "8",
+    "topico": "Regimento Comum do Congresso Nacional",
+    "subs": [
+      {
+        "n": "8.1",
+        "t": "Título I"
+      },
+      {
+        "n": "8.2",
+        "t": "Título IV, Capítulo II e Capítulo III (até art. 103)"
+      }
+    ]
+  },
+  {
+    "id": "ti_1",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "1",
+    "topico": "MS Office 365 (Word, Excel, PowerPoint e OneDrive)",
+    "subs": []
+  },
+  {
+    "id": "ti_2",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "2",
+    "topico": "Redes de computadores",
+    "subs": [
+      {
+        "n": "2.1",
+        "t": "Conceitos básicos, ferramentas, aplicativos e procedimentos de Internet e intranet"
+      }
+    ]
+  },
+  {
+    "id": "ti_3",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "3",
+    "topico": "Ferramentas de comunicação e colaboração: correio eletrônico (webmail, cliente de e-mail), aplicativos de comunicação (Microsoft Teams, Google Meet)",
+    "subs": []
+  },
+  {
+    "id": "ti_4",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "4",
+    "topico": "Conceitos gerais de segurança e governança digital",
+    "subs": [
+      {
+        "n": "4.1",
+        "t": "Segurança da informação: cópia de segurança (backup), noções de vírus, worms e pragas virtuais"
+      },
+      {
+        "n": "4.2",
+        "t": "Programas de proteção (antivírus, firewall, antispyware)"
+      },
+      {
+        "n": "4.3",
+        "t": "Ameaças digitais (phishing, pharming)"
+      }
+    ]
+  },
+  {
+    "id": "ti_5",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "5",
+    "topico": "Conceitos básicos de inteligência artificial",
+    "subs": [
+      {
+        "n": "5.1",
+        "t": "Engenharia de prompts"
+      },
+      {
+        "n": "5.2",
+        "t": "Aprendizado supervisionado, não supervisionado e por reforço"
+      },
+      {
+        "n": "5.3",
+        "t": "IA generativa: conceitos, exemplos e casos de uso"
+      }
+    ]
+  },
+  {
+    "id": "ti_6",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "6",
+    "topico": "Ética e responsabilidade digital no serviço público",
+    "subs": []
+  },
+  {
+    "id": "ti_7",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "7",
+    "topico": "Dados",
+    "subs": [
+      {
+        "n": "7.1",
+        "t": "Conceitos, atributos, métricas, transformação de dados"
+      }
+    ]
+  },
+  {
+    "id": "ti_8",
+    "bloco": "P1",
+    "materia": "Tecnologia da Informação e Dados",
+    "materiaEdital": "Tecnologia da Informação e Dados",
+    "n": "8",
+    "topico": "Visualização de dados",
+    "subs": [
+      {
+        "n": "8.1",
+        "t": "Princípios de visualização de dados"
+      },
+      {
+        "n": "8.2",
+        "t": "Tipos de gráficos (histograma, linha, barra, dispersão, box plot)"
+      },
+      {
+        "n": "8.3",
+        "t": "Ferramentas de visualização de dados (Power BI, Tableau e Data Studio)"
+      },
+      {
+        "n": "8.4",
+        "t": "Storytelling para visualização de dados"
+      }
+    ]
+  },
+  {
+    "id": "ling_1",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "1",
+    "topico": "Teoria do signo linguístico: linguagem, língua e fala; significante e significado; significação; arbitrariedade e motivação; linearidade; referente, referência, representação, sentido; denotação e conotação",
+    "subs": []
+  },
+  {
+    "id": "ling_2",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "2",
+    "topico": "Categorias semânticas: gênero, número, pessoa, tempo, modo, aspecto e papéis semânticos",
+    "subs": []
+  },
+  {
+    "id": "ling_3",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "3",
+    "topico": "Leitura",
+    "subs": [
+      {
+        "n": "3.1",
+        "t": "Compreensão literal, coesão e coerência textual"
+      },
+      {
+        "n": "3.2",
+        "t": "Ideia principal e detalhes de apoio"
+      },
+      {
+        "n": "3.3",
+        "t": "Relações de comparação, de causa e efeito e de contraste"
+      },
+      {
+        "n": "3.4",
+        "t": "Relações coesivas: referência, substituição, elipse, repetição"
+      },
+      {
+        "n": "3.5",
+        "t": "Grupos vocálicos, estrutura e formação de palavras; homônimas, parônimas e cognatas; sinonímia, antonímia, hiperonímia, hiponímia, campo semântico"
+      },
+      {
+        "n": "3.6",
+        "t": "Compreensão interpretativa: propósito do autor, informações implícitas, distinção entre fato e opinião"
+      },
+      {
+        "n": "3.7",
+        "t": "Compreensão crítica: seleção de inferência"
+      },
+      {
+        "n": "3.8",
+        "t": "Organização retórica: generalização, exemplificação, descrição, definição, especificação"
+      }
+    ]
+  },
+  {
+    "id": "ling_4",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "4",
+    "topico": "Reconhecimento dos recursos de produção de textos",
+    "subs": [
+      {
+        "n": "4.1",
+        "t": "Recursos estilísticos e estruturais na elaboração de tipos e gêneros textuais variados"
+      },
+      {
+        "n": "4.2",
+        "t": "Adequação da linguagem ao gênero e às convenções da escrita"
+      }
+    ]
+  },
+  {
+    "id": "ling_5",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "5",
+    "topico": "Teoria da Enunciação e Análise do Discurso",
+    "subs": [
+      {
+        "n": "5.1",
+        "t": "Situação de comunicação; enunciação e enunciado; a teoria da enunciação na produção do texto escrito"
+      },
+      {
+        "n": "5.2",
+        "t": "Conceitos de texto e discurso; dialogismo e polifonia; esferas sociais de comunicação"
+      },
+      {
+        "n": "5.3",
+        "t": "Retórica e oratória parlamentar"
+      }
+    ]
+  },
+  {
+    "id": "ling_6",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "6",
+    "topico": "Gêneros Discursivos, Tipologia e Processos Textuais",
+    "subs": [
+      {
+        "n": "6.1",
+        "t": "Gêneros do discurso e tipos textuais; macro e microestrutura; construção composicional, conteúdo temático e estilo"
+      },
+      {
+        "n": "6.2",
+        "t": "Intertextualidade; retextualização; reescritura e paráfrase"
+      }
+    ]
+  },
+  {
+    "id": "ling_7",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "7",
+    "topico": "Linguagem e variação linguística",
+    "subs": [
+      {
+        "n": "7.1",
+        "t": "Tipos de variação linguística; dialetos e registros"
+      },
+      {
+        "n": "7.2",
+        "t": "Oralidade e escrita. Formalidade e informalidade. Normas linguísticas"
+      },
+      {
+        "n": "7.3",
+        "t": "A variação linguística no português do Brasil e a construção do texto escrito"
+      }
+    ]
+  },
+  {
+    "id": "ling_8",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "8",
+    "topico": "Língua e gramática: concepções e tipos de gramática; correção e incorreção; propriedade e impropriedade",
+    "subs": []
+  },
+  {
+    "id": "ling_9",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "9",
+    "topico": "Funções da linguagem",
+    "subs": []
+  },
+  {
+    "id": "ling_10",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "10",
+    "topico": "Retórica e figuras de linguagem",
+    "subs": []
+  },
+  {
+    "id": "ling_11",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "11",
+    "topico": "Comunicações oficiais: introduções e fechos, pronomes de tratamento, reduções ortográficas, conceitos e estrutura de documentos oficiais",
+    "subs": []
+  },
+  {
+    "id": "ling_12",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "12",
+    "topico": "Noções básicas de lógica: conectivos, argumentos e notação",
+    "subs": []
+  },
+  {
+    "id": "ling_13",
+    "bloco": "P2",
+    "materia": "Linguística",
+    "materiaEdital": "Linguística",
+    "n": "13",
+    "topico": "Técnica Legislativa: Lei Complementar 95/1998 e alterações",
+    "subs": []
+  },
+  {
+    "id": "ia_1",
+    "bloco": "P2",
+    "materia": "Fala, Transcrição e IA",
+    "materiaEdital": "Reconhecimento de Fala, Transcrição e Inteligência Artificial",
+    "n": "1",
+    "topico": "Reconhecimento de Fala e Transcrição de Áudio",
+    "subs": [
+      {
+        "n": "1.1",
+        "t": "Reconhecimento automático de fala (ASR)"
+      },
+      {
+        "n": "1.2",
+        "t": "Modelos de fala end-to-end"
+      },
+      {
+        "n": "1.3",
+        "t": "LLMs multimodais de áudio nativo"
+      },
+      {
+        "n": "1.4",
+        "t": "Diarização de falantes: identificação e separação de múltiplos oradores"
+      },
+      {
+        "n": "1.5",
+        "t": "Pontuação automática e capitalização em transcrições"
+      },
+      {
+        "n": "1.6",
+        "t": "Desafios do ASR em português brasileiro: sotaques, vocabulário técnico e parlamentar"
+      },
+      {
+        "n": "1.7",
+        "t": "Transcrição em tempo real"
+      },
+      {
+        "n": "1.8",
+        "t": "Ferramentas e APIs: Whisper (OpenAI), Google Speech-to-Text, Azure Speech, AWS Transcribe"
+      }
+    ]
+  },
+  {
+    "id": "ia_2",
+    "bloco": "P2",
+    "materia": "Fala, Transcrição e IA",
+    "materiaEdital": "Reconhecimento de Fala, Transcrição e Inteligência Artificial",
+    "n": "2",
+    "topico": "Degravação e Pós-processamento de Transcrições",
+    "subs": [
+      {
+        "n": "2.1",
+        "t": "Diferença entre transcrição automática, degravação e revisão humana"
+      },
+      {
+        "n": "2.2",
+        "t": "Fluxo de degravação assistida por IA (human in the loop)"
+      },
+      {
+        "n": "2.3",
+        "t": "Revisão e edição de transcrições: critérios de qualidade e fidelidade"
+      },
+      {
+        "n": "2.4",
+        "t": "Formatação de transcrições parlamentares: identificação de oradores, marcação de pausa, ruído etc."
+      },
+      {
+        "n": "2.5",
+        "t": "Normalização de texto: números, siglas, abreviações e termos técnicos"
+      },
+      {
+        "n": "2.6",
+        "t": "Ferramentas de CAT (Computer Assisted Transcription) e editores de transcrição"
+      },
+      {
+        "n": "2.7",
+        "t": "Controle de qualidade: revisão em dupla, auditorias de amostras, SLA"
+      },
+      {
+        "n": "2.8",
+        "t": "Vocabulário técnico parlamentar e vocabulário adaptado (language model adaptation)"
+      }
+    ]
+  },
+  {
+    "id": "ia_3",
+    "bloco": "P2",
+    "materia": "Fala, Transcrição e IA",
+    "materiaEdital": "Reconhecimento de Fala, Transcrição e Inteligência Artificial",
+    "n": "3",
+    "topico": "IA Aplicada no Contexto Parlamentar",
+    "subs": [
+      {
+        "n": "3.1",
+        "t": "Aplicações de IA em parlamentos: transcrição de sessões, sumarização, indexação e busca"
+      },
+      {
+        "n": "3.2",
+        "t": "Sistemas de busca semântica em acervos parlamentares"
+      },
+      {
+        "n": "3.3",
+        "t": "Geração automática de atas e resumos de sessões"
+      },
+      {
+        "n": "3.4",
+        "t": "Modelos de IA multilíngues e especializados em português"
+      }
+    ]
+  },
+  {
+    "id": "ia_4",
+    "bloco": "P2",
+    "materia": "Fala, Transcrição e IA",
+    "materiaEdital": "Reconhecimento de Fala, Transcrição e Inteligência Artificial",
+    "n": "4",
+    "topico": "Proteção e segurança da informação",
+    "subs": [
+      {
+        "n": "4.1",
+        "t": "LGPD e proteção de dados em sistemas de transcrição e IA"
+      },
+      {
+        "n": "4.2",
+        "t": "Direitos autorais e ética no uso de IA para conteúdo gerado"
+      },
+      {
+        "n": "4.3",
+        "t": "Segurança da informação em pipelines de áudio e transcrição"
+      }
+    ]
+  },
+  {
+    "id": "leg_1",
+    "bloco": "P2",
+    "materia": "Processo Legislativo e Regimentos",
+    "materiaEdital": "Processo Legislativo e Regimento Interno da Câmara dos Deputados, Regimento Comum do Congresso Nacional",
+    "n": "1",
+    "topico": "Procedimento Legislativo",
+    "subs": [
+      {
+        "n": "1.1",
+        "t": "Tipos de procedimento: ordinário, abreviado, sumário, sumaríssimo, especial e concentrado; etapas e noções básicas"
+      },
+      {
+        "n": "1.2",
+        "t": "Comissões, pareceres, deliberação, votação, sanção e veto"
+      },
+      {
+        "n": "1.3",
+        "t": "Matérias legislativas: projeto de lei ordinária, complementar e delegada; medida provisória; projeto de decreto legislativo e de resolução; PEC"
+      },
+      {
+        "n": "1.4",
+        "t": "Indicações, pareceres, requerimentos e vetos"
+      },
+      {
+        "n": "1.5",
+        "t": "Iniciativa legislativa: Presidência da República, Congresso Nacional, tribunais e cidadãos"
+      }
+    ]
+  },
+  {
+    "id": "leg_2",
+    "bloco": "P2",
+    "materia": "Processo Legislativo e Regimentos",
+    "materiaEdital": "Processo Legislativo e Regimento Interno da Câmara dos Deputados, Regimento Comum do Congresso Nacional",
+    "n": "2",
+    "topico": "Regimento Interno da Câmara dos Deputados",
+    "subs": [
+      {
+        "n": "2.1",
+        "t": "Resolução 17/1989 e alterações (arts. 25 a 64; arts. 95 a 200)"
+      }
+    ]
+  },
+  {
+    "id": "leg_3",
+    "bloco": "P2",
+    "materia": "Processo Legislativo e Regimentos",
+    "materiaEdital": "Processo Legislativo e Regimento Interno da Câmara dos Deputados, Regimento Comum do Congresso Nacional",
+    "n": "3",
+    "topico": "Regimento Comum do Congresso Nacional",
+    "subs": [
+      {
+        "n": "3.1",
+        "t": "Resolução 1/1970-CN e alterações (arts. 1º a 71)"
+      }
+    ]
+  },
+  {
+    "id": "pol_1",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "1",
+    "topico": "Regimes políticos",
+    "subs": []
+  },
+  {
+    "id": "pol_2",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "2",
+    "topico": "Sistemas e formas de governo",
+    "subs": []
+  },
+  {
+    "id": "pol_3",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "3",
+    "topico": "Representação política",
+    "subs": []
+  },
+  {
+    "id": "pol_4",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "4",
+    "topico": "Poderes e relações entre poderes: Executivo, Legislativo e Judiciário",
+    "subs": []
+  },
+  {
+    "id": "pol_5",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "5",
+    "topico": "Sistemas eleitorais",
+    "subs": []
+  },
+  {
+    "id": "pol_6",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "6",
+    "topico": "Teoria dos partidos políticos",
+    "subs": []
+  },
+  {
+    "id": "pol_7",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "7",
+    "topico": "Organização política brasileira",
+    "subs": []
+  },
+  {
+    "id": "pol_8",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "8",
+    "topico": "Temas relevantes de política internacional e brasileira contemporânea",
+    "subs": []
+  },
+  {
+    "id": "pol_9",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "9",
+    "topico": "Teoria do Estado e formação dos Estados nacionais",
+    "subs": []
+  },
+  {
+    "id": "pol_10",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "10",
+    "topico": "Formação do Estado brasileiro",
+    "subs": []
+  },
+  {
+    "id": "pol_11",
+    "bloco": "P2",
+    "materia": "Ciência Política",
+    "materiaEdital": "Ciência Política",
+    "n": "11",
+    "topico": "História do voto e dos partidos no Brasil",
+    "subs": []
+  }
+];
+
+    const STORAGE_KEY = "camara_cargo11_progress_v2";
+
+    function loadProgress() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { return {}; }
+    }
+    let userProgress = loadProgress();
+
+    function saveProgress() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(userProgress)); } catch (e) {}
+      updateMetrics();
+    }
+
+    function toggleCheck(id, field, el) {
+      if (!userProgress[id]) userProgress[id] = {};
+      userProgress[id][field] = !userProgress[id][field];
+      saveProgress();
+      refreshRow(id);
+      refreshGroups();
+    }
+
+    function isDone(id) {
+      const s = userProgress[id] || {};
+      return !!(s.teoria && s.exercicios && s.rev1 && s.rev2);
+    }
+
+    function refreshRow(id) {
+      const tr = document.querySelector('tr[data-id="' + id + '"]');
+      if (tr) tr.classList.toggle("done", isDone(id));
+    }
+
+    function refreshGroups() {
+      document.querySelectorAll("tr.group-row").forEach(function (g) {
+        const m = g.getAttribute("data-materia");
+        const items = editalData.filter(function (i) { return i.materia === m; });
+        const teoria = items.filter(function (i) { return (userProgress[i.id] || {}).teoria; }).length;
+        g.querySelector(".group-meta").textContent = items.length + " tópicos · teoria " + teoria + "/" + items.length;
+      });
+    }
+
+    function populateSubjects() {
+      const blocoFilter = document.getElementById("filterBloco").value;
+      const select = document.getElementById("filterSubject");
+      select.innerHTML = '<option value="all">Todas as Matérias</option>';
+      const subjects = [];
+      editalData.forEach(function (item) {
+        if (blocoFilter !== "all" && item.bloco !== blocoFilter) return;
+        if (subjects.indexOf(item.materia) === -1) subjects.push(item.materia);
+      });
+      subjects.forEach(function (sub) {
+        const opt = document.createElement("option");
+        opt.value = sub;
+        opt.textContent = sub;
+        select.appendChild(opt);
+      });
+    }
+
+    function onBlocoChange() {
+      populateSubjects();
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("topicsTable");
+      tbody.innerHTML = "";
+
+      const blocoFilter = document.getElementById("filterBloco").value;
+      const subjectFilter = document.getElementById("filterSubject").value;
+
+      const filtered = editalData.filter(function (item) {
+        const matchBloco = blocoFilter === "all" || item.bloco === blocoFilter;
+        const matchSubject = subjectFilter === "all" || item.materia === subjectFilter;
+        return matchBloco && matchSubject;
+      });
+
+      let lastMateria = null;
+      filtered.forEach(function (item) {
+        if (item.materia !== lastMateria) {
+          lastMateria = item.materia;
+          const g = document.createElement("tr");
+          g.className = "group-row";
+          g.setAttribute("data-materia", item.materia);
+          g.innerHTML =
+            '<td><span class="badge ' + (item.bloco === "P2" ? "badge-p2" : "badge-p1") + '">' + item.bloco + '</span></td>' +
+            '<td colspan="5"><div class="group-inner"><span class="group-title" title="' + item.materiaEdital + '">' + item.materia + '</span><span class="group-meta"></span></div></td>';
+          tbody.appendChild(g);
+        }
+
+        const state = userProgress[item.id] || {};
+        const tr = document.createElement("tr");
+        tr.className = "topic-row" + (isDone(item.id) ? " done" : "");
+        tr.setAttribute("data-id", item.id);
+
+        const subs = item.subs.length
+          ? '<ul class="subs">' + item.subs.map(function (s) { return "<li><b>" + s.n + "</b>" + s.t + "</li>"; }).join("") + "</ul>"
+          : "";
+
+        function cb(field, checked) {
+          return '<td class="checkbox-cell"><input type="checkbox" ' + (checked ? "checked" : "") +
+                 " onchange=\"toggleCheck('" + item.id + "', '" + field + "', this)\"></td>";
+        }
+
+        tr.innerHTML =
+          "<td></td>" +
+          '<td><span class="topic-num">' + item.n + '</span><span class="topic-title">' + item.topico + "</span>" + subs + "</td>" +
+          cb("teoria", state.teoria) + cb("exercicios", state.exercicios) + cb("rev1", state.rev1) + cb("rev2", state.rev2);
+        tbody.appendChild(tr);
+      });
+      refreshGroups();
+    }
+
+    function updateMetrics() {
+      const totalItems = editalData.length;
+      let theory = 0, exercises = 0, rev1 = 0, rev2 = 0;
+
+      editalData.forEach(function (item) {
+        const state = userProgress[item.id] || {};
+        if (state.teoria) theory++;
+        if (state.exercicios) exercises++;
+        if (state.rev1) rev1++;
+        if (state.rev2) rev2++;
+      });
+
+      const totalChecksPossible = totalItems * 4;
+      const totalChecksDone = theory + exercises + rev1 + rev2;
+      const percent = Math.round((totalChecksDone / totalChecksPossible) * 100);
+
+      document.getElementById("overallPercent").textContent = percent + "%";
+      document.getElementById("progressText").textContent = percent + "%";
+      document.getElementById("progressBar").style.width = percent + "%";
+
+      document.getElementById("theoryCount").textContent = theory + "/" + totalItems;
+      document.getElementById("exercisesCount").textContent = exercises + "/" + totalItems;
+      document.getElementById("revisionsCount").textContent = (rev1 + rev2) + "/" + (totalItems * 2);
+    }
+
+    function filterData() {
+      renderTable();
+    }
+
+    function resetProgress() {
+      if (confirm("Deseja realmente zerar todo o progresso marcado?")) {
+        userProgress = {};
+        saveProgress();
+        renderTable();
+      }
+    }
+
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userProgress));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "progresso_camara_cargo11.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    populateSubjects();
+    renderTable();
+    updateMetrics();
+  </script>
+</body>
+</html>
